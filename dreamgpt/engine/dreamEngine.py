@@ -7,28 +7,51 @@ from dreamgpt.engine.prompts.themeExpansionPrompts import themeExpansionPrompt
 from dreamgpt.llm.llm import chatComplete
 from dreamgpt.store.entity import getEntityFromJSON
 from dreamgpt.store.store import Store
-from time import time
-from nistbeacon import NistBeacon, NistBeaconValue
-
+from datetime import datetime
+        
+import requests
+import json
 
 class DreamEngine:
     def __init__(self):
 
         self.next_time = 0
-        self.beacon_value: NistBeaconValue = None
+        self.beacon_value = None
         self.next_beacon()
 
         self.store = Store()
 
     def next_beacon(self):
-        t = time()
+        t = int(round(datetime.now().timestamp()))
+        if t % 60 != 0:
+            t -= t % 60        
+
+        print(str(datetime.fromtimestamp(t)))
+        
         if t < self.next_time:
             return False
         
-        self.beacon_value = NistBeacon.get_last_record()
-        random.seed(self.beacon_value.seed_value)
-        self.next_time = t + self.beacon_value.frequency
-        return True
+        oldval = self.beacon_value or ""
+        
+        result = requests.get("https://beacon.nist.gov/beacon/2.0/chain/last/pulse/last?type=json")
+        
+        if (result.status_code == 200):
+            beacon = json.loads(result.content)
+            seedval = beacon["pulse"]["outputValue"]
+        else:
+            return False
+        
+        if oldval != seedval:
+            self.beacon_value = seedval
+            random.seed(seedval)
+            print()
+            print("Next NIST Random Seed... ")
+            print(seedval)
+            print()
+            self.next_time = t + (beacon["pulse"]["period"] / 1000)
+            return True
+        
+        return False
     
     def expandTheme(self, theme):
         if theme is None:
