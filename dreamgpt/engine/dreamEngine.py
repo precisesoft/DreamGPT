@@ -31,8 +31,7 @@ class DreamEngine:
         if t < self.next_time:
             return False
         
-        oldval = self.beacon_value or ""
-        
+        oldval = self.beacon_value or ""        
         result = requests.get("https://beacon.nist.gov/beacon/2.0/chain/last/pulse/last?type=json")
         
         if (result.status_code == 200):
